@@ -61,27 +61,54 @@ var Rcon = [11]uint8{
 	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36}
 
 func main() {
-	message := getMessage()
-	// ^^^^^ N length
-	messageLen := len(message)
-	remainder := messageLen % 16
-	fmt.Printf("Remainder: %d\n", remainder)
-	remainderText := message[messageLen-remainder:]
-	fmt.Printf("Remainder text: %s\n", remainderText)
-
-	//hexMessage := hexMessage(message)
-
-	// Currently, hexMessage returns a string
-	// Assumes string is 16 char or less
-
-	//fmt.Printf("%s\n", hexMessage)
-	//fmt.Printf("Len of hexMessage : %v\n", len(hexMessage))
-	//test, err := strconv.ParseInt(hexMessage[0:4], 16, 0)
-	//fmt.Printf("%v, %s", test, err)
-	//fmt.Println(len(hexMessage))
-
-	//aes_encryption(hexMessage)
-
+	// Declare variables
+	var message string
+	var messageLen int
+	var numChunks int
+	var minIndex int
+	var maxIndex int
+	var remainder int
+	var messageChunk string
+	//var result string
+	
+	// Get message input from user
+	message = getMessage()
+	
+	// Calculate message length, split into chunks of 16 characters, get any trailing characters
+	messageLen = len(message)
+	numChunks = messageLen / AESChunk
+	
+	// Iterate through the message in chunks of 16 including remainder chunk
+	for index := 0; index <= numChunks; index++ {
+		// Getindex of current chunk range
+		minIndex = index * AESChunk
+		maxIndex = minIndex + AESChunk
+		
+		// Check for index out of bounds, then chunk is the remainder, otherwise grab current chunk
+		if maxIndex > messageLen {
+			remainder = messageLen % AESChunk
+			messageChunk = message[messageLen - remainder:]
+		} else {
+			messageChunk = message[minIndex:maxIndex]
+		}
+		fmt.Printf("Current chunk: %s\n", messageChunk) //DEBUG display chunk
+		
+		// Convert chunk to hex, overwrite plaintext chunk (good design choice?)
+		messageChunk = hexMessage(messageChunk)
+		
+		// Encrypt chunk, append to result string
+		//result += aes_encryption(messageChunk)
+		
+		/* -----------------------DEBUGGING--------------------------------*/
+		fmt.Printf( "Message Hex: %s\n", messageChunk )
+		m := "01020304050607080910111213141516"
+		m1 := ShiftRows(m)
+		fmt.Printf("Original: %s\nShift Rows: %s\n", m, m1 )
+		/* -----------------------END DEBUG--------------------------------*/
+	}
+	
+	// Return result string
+	//return result
 }
 
 /* SubBytes substitutes bytes in a string with their S-Box counterpart
@@ -105,31 +132,23 @@ func SubBytes(cipherText string) string {
 }
 
 func ShiftRows(roundCipher string) string {
-	fmt.Printf("Before shifting: %v\n", roundCipher)
+	//fmt.Printf("Before shifting: %v\n", roundCipher) //DEBUG
 	var result string
 	oneShift := ShiftRowsWork(roundCipher[8:16], 1)
 	twoShift := ShiftRowsWork(roundCipher[16:24], 2)
 	threeShift := ShiftRowsWork(roundCipher[24:32], 3)
 	result = roundCipher[0:8] + oneShift + twoShift + threeShift
-	fmt.Printf("After shifting: %v\n", result)
+	//fmt.Printf("After shifting: %v\n", result) //DEBUG
 	return result
 }
 
 func ShiftRowsWork(row string, shiftAmount int) string {
-	var copyStr string
-	switch shiftAmount {
-	case 1:
-		copyStr = row[2:]
-		copyStr += row[:2]
-
-	case 2:
-		copyStr = row[4:]
-		copyStr += row[:4]
-
-	case 3:
-		copyStr = row[6:]
-		copyStr += row[:6]
+	copyStr := row
+	
+	for counter := 0; counter < shiftAmount; counter++ {
+		copyStr = copyStr[2:] + copyStr[:2]
 	}
+
 	return copyStr
 }
 
@@ -154,12 +173,21 @@ func getMessage() string {
 /* main aes encryption function that calls the other 4 steps
 Returns ciphertext */
 func aes_encryption(cipherText string) {
+	// TODO
 	// Add round key
 	// SubBytes -- Working
 	cipherText = SubBytes(cipherText)
-	// ShiftRows -- In-Progress
-	ShiftRows(cipherText)
-
+	// ShiftRows -- Working
+	cipherText = ShiftRows(cipherText)
 	// MixColumns
 	// AddRoundKey
+	
+	
+	// STRUCTURE - Initial round
+	
+	// Loop for 9 main rounds
+	
+	// Final round
+	
+	// Return cipherText
 }
