@@ -66,23 +66,56 @@ var Rcon = [11]uint8{
 	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36}
 
 func main() {
-	//message := getMessage()
-	message := "Hello there"
-	encodedMessage := encodeMessage(message)
-	// Format message so it is len() % 16 == 0
-	// We can only work on 16 bytes at a time
-	messageLen := len(encodedMessage)
-	if messageLen > 32 {
-		remainder := messageLen % 32 // Because len() works on strings, this is 32 characters
-		roundedText := encodedMessage[:messageLen-remainder]
-		remainderText := encodedMessage[messageLen-remainder:]
-		remainderText = fmt.Sprintf("%032s", remainderText)
-		message = roundedText + remainderText
-	} else {
-		message = fmt.Sprintf("%-32s", encodedMessage)
-	}
-	aesEncryption(message)
+	// Declare variables
+	var message string
+	var messageLen int
+	var numChunks int
+	var minIndex int
+	var maxIndex int
+	var remainder int
+	var messageChunk string
+	//var result string
 
+	// Get message input from user
+	//message = getMessage() // Uncomment to get input from user
+	//message = "This is a test.."  // Len 16 for testing
+	message = "This is a test!!!" // Len 17 for testing
+
+	// Calculate message length, split into chunks of 16 characters, get any trailing characters
+	messageLen = len(message)
+	numChunks = messageLen / AESChunk
+
+	// Iterate through the message in chunks of 16 including remainder chunk
+	for index := 0; index <= numChunks; index++ {
+		// Getindex of current chunk range
+		minIndex = index * AESChunk
+		maxIndex = minIndex + AESChunk
+
+		// Check for index out of bounds, then chunk is the remainder, otherwise grab current chunk
+		if maxIndex > messageLen {
+			remainder = messageLen % AESChunk
+			messageChunk = message[messageLen-remainder:]
+		} else {
+			messageChunk = message[minIndex:maxIndex]
+		}
+		fmt.Printf("Current chunk: %s\n", messageChunk) //DEBUG display chunk
+
+		// Convert chunk to hex, overwrite plaintext chunk (good design choice?)
+		messageChunk = hexMessage(messageChunk)
+	}
+
+	// Encrypt chunk, append to result string
+	//result += aes_encryption(messageChunk)
+
+	/* -----------------------DEBUGGING--------------------------------/
+	fmt.Printf( "Message Hex: %s\n", messageChunk )
+	m := "01020304050607080910111213141516"
+	m1 := ShiftRows(m)
+	fmt.Printf("Original: %s\nShift Rows: %s\n", m, m1 )
+	/ -----------------------END DEBUG--------------------------------*/
+	//message := getMessage()
+	// Return result string
+	//return result
 }
 
 /* SubBytes substitutes bytes in a string with their S-Box counterpart
