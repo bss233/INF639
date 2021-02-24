@@ -8,15 +8,24 @@ Matrix Math
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	// delete reflect before packaging
 )
 
-const AESChunk = 16
+// AESChunk is the amount of bytes allowed for AES encryption
+var AESChunk = 16
 
-// Rinjindael S-Box
+// MixColumnsMatrix is a 4x4 matrix used for the mix columns step of AES
+var MixColumnsMatrix = [4][4]int64{
+	{02, 03, 01, 01},
+	{01, 02, 03, 01},
+	{01, 01, 02, 03},
+	{03, 01, 01, 02}}
+
+//SBOX is Rinjindael S-Box
 var SBOX = [256]uint8{
 	//0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -55,67 +64,77 @@ var rsbox = [256]uint8{
 	0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
 	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d}
 
-// The round constant word array, Rcon[i], contains the values given by
+//Rcon is the round constant word array, Rcon[i], contains the values given by
 // x to the power (i-1) being powers of x (x is denoted as {02}) in the field GF(2^8)
 var Rcon = [11]uint8{
 	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36}
 
+// main drives the demonstration of the AES tools
 func main() {
 	// Declare variables
 	var message string
 	var messageLen int
-	var numChunks int
-	var minIndex int
-	var maxIndex int
-	var remainder int
-	var messageChunk string
 	//var result string
-	
 	// Get message input from user
-	message = getMessage()
-	
+	//message = getMessage() // Uncomment to get input from user
+	message = "This is a test.." // Len 16 for testing
+	//message = "This is a test!!!" // Len 17 for testing
 	// Calculate message length, split into chunks of 16 characters, get any trailing characters
 	messageLen = len(message)
-	numChunks = messageLen / AESChunk
-	
-	// Iterate through the message in chunks of 16 including remainder chunk
-	for index := 0; index <= numChunks; index++ {
-		// Getindex of current chunk range
-		minIndex = index * AESChunk
-		maxIndex = minIndex + AESChunk
-		
-		// Check for index out of bounds, then chunk is the remainder, otherwise grab current chunk
-		if maxIndex > messageLen {
-			remainder = messageLen % AESChunk
-			messageChunk = message[messageLen - remainder:]
-		} else {
-			messageChunk = message[minIndex:maxIndex]
-		}
-		fmt.Printf("Current chunk: %s\n", messageChunk) //DEBUG display chunk
-		
-		// Convert chunk to hex, overwrite plaintext chunk (good design choice?)
-		messageChunk = hexMessage(messageChunk)
-		
-		// Encrypt chunk, append to result string
-		//result += aes_encryption(messageChunk)
-		
-		/* -----------------------DEBUGGING--------------------------------*/
-		fmt.Printf( "Message Hex: %s\n", messageChunk )
-		m := "01020304050607080910111213141516"
-		m1 := ShiftRows(m)
-		fmt.Printf("Original: %s\nShift Rows: %s\n", m, m1 )
-		/* -----------------------END DEBUG--------------------------------*/
-	}
-	
+	chunks := chunkMessage(message, messageLen)
+	aesEncryption(chunks)
+	// Encrypt chunk, append to result string
+	//result += aes_encryption(messageChunk)
+
+	/* -----------------------DEBUGGING--------------------------------/
+	fmt.Printf( "Message Hex: %s\n", messageChunk )
+	m := "01020304050607080910111213141516"
+	m1 := ShiftRows(m)
+	fmt.Printf("Original: %s\nShift Rows: %s\n", m, m1 )
+	/ -----------------------END DEBUG--------------------------------*/
+	//message := getMessage()
 	// Return result string
 	//return result
 }
 
-/* SubBytes substitutes bytes in a string with their S-Box counterpart
-Returns string of bytes */
-func SubBytes(cipherText string) string {
+// chunkMessage takes a string and chunks it for AES
+// the resulting chunks are 16 bytes in length
+// chunks has an additional element at the last index that contains a string reduction of it's contents
+func chunkMessage(message string, messageLen int) (chunks []string) {
+	var minIndex int
+	var maxIndex int
+	var remainder int
+	var messageChunk string
+	lazy := ""
+	chunks = make([]string, 0)
+	numChunks := messageLen / AESChunk
+	for index := 0; index <= numChunks; index++ {
+		// Getindex of current chunk range
+		minIndex = index * AESChunk
+		maxIndex = minIndex + AESChunk
+
+		// Check for index out of bounds, then chunk is the remainder, otherwise grab current chunk
+		if maxIndex > messageLen {
+			remainder = messageLen % AESChunk
+			messageChunk = message[messageLen-remainder:]
+		} else {
+			messageChunk = message[minIndex:maxIndex]
+		}
+		fmt.Printf("Current chunk: %s\n", messageChunk) //DEBUG display chunk
+
+		// Convert chunk to hex, overwrite plaintext chunk (good design choice?)
+		messageChunk = encodeMessage(messageChunk)
+		lazy += messageChunk
+		chunks = append(chunks, messageChunk)
+	}
+	chunks = append(chunks, lazy)
+	return
+}
+
+// SubBytes substitutes bytes in a string with their S-Box counterpart
+// Returns string of bytes
+func SubBytes(cipherText string) (result string) {
 	//fmt.Printf("%s", cipherText[0:2])
-	var result string
 	var selectedHex string
 	for i := 0; i < 32; {
 		selectedHex = cipherText[i : i+2]
@@ -127,36 +146,68 @@ func SubBytes(cipherText string) string {
 		i += 2
 
 	}
-	return result
+	return
 
 }
 
-func ShiftRows(roundCipher string) string {
-	//fmt.Printf("Before shifting: %v\n", roundCipher) //DEBUG
-	var result string
-	oneShift := ShiftRowsWork(roundCipher[8:16], 1)
-	twoShift := ShiftRowsWork(roundCipher[16:24], 2)
-	threeShift := ShiftRowsWork(roundCipher[24:32], 3)
-	result = roundCipher[0:8] + oneShift + twoShift + threeShift
-	//fmt.Printf("After shifting: %v\n", result) //DEBUG
+func buildShiftGroups(workingString string) (groups []string) {
+	// No shift is [0:2], [8:10], [16:18], [24:26]
+	// One shift is [1:4], [10:12], [18:20], [26:28]
+	// Two shift is [3:6], [12:14], [20:22], [28:30]
+	// Three shift is [5:8], [14:16], [22:24], [30:32]
+	var noShift, oneShift, twoShift, threeShift string
+
+	for i := 0; i < 32; {
+		noShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, noShift)
+
+	for i := 2; i < 32; {
+		oneShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, oneShift)
+
+	for i := 4; i < 32; {
+		twoShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, twoShift)
+
+	for i := 6; i < 32; {
+		threeShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, threeShift)
+
+	//fmt.Printf("Groups: %s\n", groups)
+	return groups
+}
+
+// ShiftRows does the Shift Rows operation in AES encryption
+// uses ShiftRowsWork as a helper function
+func ShiftRows(roundCipher string) (result []string) {
+	result = make([]string, 4)
+	groups := buildShiftGroups(roundCipher)
+	result[0] = groups[0]
+	oneShift := ShiftRowsWork(groups[1], 1)
+	result[1] = oneShift
+	twoShift := ShiftRowsWork(groups[2], 2)
+	result[2] = twoShift
+	threeShift := ShiftRowsWork(groups[3], 3)
+	result[3] = threeShift
 	return result
 }
 
-func ShiftRowsWork(row string, shiftAmount int) string {
-	copyStr := row
-	
+// ShiftRowsWork reorders a hex string
+func ShiftRowsWork(row string, shiftAmount int) (copyStr string) {
+	copyStr = row
 	for counter := 0; counter < shiftAmount; counter++ {
 		copyStr = copyStr[2:] + copyStr[:2]
 	}
 
-	return copyStr
-}
-
-/* Hash the plain text
-Return byte[] */
-func hexMessage(message string) string {
-	hexText := fmt.Sprintf("%-032x", message)
-	return hexText
+	return
 }
 
 /* Get plain text to encrypt */
@@ -166,28 +217,127 @@ func getMessage() string {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan() // use `for scanner.Scan()` to keep reading
 	plainText = scanner.Text()
-	fmt.Printf("Entered plain text: %s\n", plainText)
 	return plainText
+}
+
+func encodeMessage(rawMessage string) (encodedMessage string) {
+	byteMessage := []byte(rawMessage)
+	encodedMessage = hex.EncodeToString(byteMessage)
+	return
 }
 
 /* main aes encryption function that calls the other 4 steps
 Returns ciphertext */
-func aes_encryption(cipherText string) {
-	// TODO
+func aesEncryption(toEncypt []string) {
+	cipherText := toEncypt[len(toEncypt)-1]
 	// Add round key
 	// SubBytes -- Working
 	cipherText = SubBytes(cipherText)
 	// ShiftRows -- Working
-	cipherText = ShiftRows(cipherText)
-	// MixColumns
+	cipherMatrix := ShiftRows(cipherText)
+	// MixColumns -- Working?
+	cipherMatrix = mixColumns(cipherMatrix)
 	// AddRoundKey
-	
-	
+
 	// STRUCTURE - Initial round
-	
+
 	// Loop for 9 main rounds
-	
+
 	// Final round
-	
+
 	// Return cipherText
+}
+
+// buildColumn is used to arrange the given string into "AES Columns"
+// AES Columns strings comprised of all hex pairs at a given index
+func buildColumn(matrix []string, startIndex int) (newCol string) {
+	for _, value := range matrix {
+		newCol += value[startIndex : startIndex+2]
+	}
+	return newCol
+}
+
+func mixColumns(cipherMatrix []string) (resultMatrix []string) {
+	mathMatrix := make([]string, 0)
+
+	for i := 0; i <= 6; {
+		mathMatrix = append(mathMatrix, buildColumn(cipherMatrix, i))
+		i += 2
+	}
+
+	for _, column := range mathMatrix {
+		//fmt.Printf("Col: %v, %v\n", col_index, column)
+		workingCol := buildBytes(column)
+		mixedCol := mixColumnMath(workingCol)
+		fmt.Printf("Mixed Column: %v\n", mixedCol)
+
+	}
+
+	return
+}
+
+// mathHelper xors all values in a vector and returns the result
+func mathHelper(vector [][4]int64) (resultVector []int64) {
+	var val int64
+	for _, vectorSet := range vector {
+		val = vectorSet[0]
+		for i := 1; i < 4; i++ {
+			val = val ^ vectorSet[i]
+		}
+		resultVector = append(resultVector, val)
+	}
+	return
+}
+
+// mixColumnMath performs galois matrix multiplicaton on a given vector
+// It uses the AES Mix Columns Maxtrix as the matrix to multiply the vector with
+func mixColumnMath(hexVector []int64) (mixedCol []int64) {
+	matrixSlices := make([][4]int64, 0)
+	var tempArray [4]int64
+	var tempVal int64
+	for _, rowVector := range MixColumnsMatrix {
+
+		for colIndex, vectorVal := range rowVector {
+
+			currentHex := hexVector[colIndex]
+
+			if vectorVal != 1 {
+
+				tempVal = currentHex * 2
+
+				if vectorVal == 3 {
+					tempVal = tempVal ^ currentHex
+				}
+
+				if tempVal > 255 { // Overflow
+					xorVal := (tempVal ^ 27) - 256 // 1B in Hex
+					tempVal = xorVal
+				}
+
+			} else {
+				tempVal = currentHex
+			}
+
+			tempArray[colIndex] = tempVal
+			if colIndex == 3 {
+				matrixSlices = append(matrixSlices, tempArray)
+			}
+
+		}
+	}
+
+	// Actual Spaghetti
+	mixedCol = mathHelper(matrixSlices)
+	return
+}
+
+// buildBytes converts a string of length 8 to an array of integers
+// It expects 8 characters which should represent 4 hex pairs
+func buildBytes(hexString string) (hexArray []int64) {
+	for i := 0; i < 8; {
+		hexInt, _ := strconv.ParseInt(hexString[i:i+2], 16, 0)
+		i += 2
+		hexArray = append(hexArray, hexInt)
+	}
+	return
 }
