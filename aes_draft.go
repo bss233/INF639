@@ -8,13 +8,18 @@ Matrix Math
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	// delete reflect before packaging
 )
 
-const AESChunk = 16
+var MixColumnsEncode = [16]uint8{
+	02, 03, 01, 01,
+	01, 02, 03, 01,
+	01, 01, 02, 03,
+	03, 01, 01, 02}
 
 // Rinjindael S-Box
 var SBOX = [256]uint8{
@@ -61,34 +66,29 @@ var Rcon = [11]uint8{
 	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36}
 
 func main() {
-	message := getMessage()
-	// ^^^^^ N length
-	messageLen := len(message)
-	remainder := messageLen % 16
-	fmt.Printf("Remainder: %d\n", remainder)
-	remainderText := message[messageLen-remainder:]
-	fmt.Printf("Remainder text: %s\n", remainderText)
-
-	//hexMessage := hexMessage(message)
-
-	// Currently, hexMessage returns a string
-	// Assumes string is 16 char or less
-
-	//fmt.Printf("%s\n", hexMessage)
-	//fmt.Printf("Len of hexMessage : %v\n", len(hexMessage))
-	//test, err := strconv.ParseInt(hexMessage[0:4], 16, 0)
-	//fmt.Printf("%v, %s", test, err)
-	//fmt.Println(len(hexMessage))
-
-	//aes_encryption(hexMessage)
+	//message := getMessage()
+	message := "Hello there"
+	encodedMessage := encodeMessage(message)
+	// Format message so it is len() % 16 == 0
+	// We can only work on 16 bytes at a time
+	messageLen := len(encodedMessage)
+	if messageLen > 32 {
+		remainder := messageLen % 32 // Because len() works on strings, this is 32 characters
+		roundedText := encodedMessage[:messageLen-remainder]
+		remainderText := encodedMessage[messageLen-remainder:]
+		remainderText = fmt.Sprintf("%032s", remainderText)
+		message = roundedText + remainderText
+	} else {
+		message = fmt.Sprintf("%-32s", encodedMessage)
+	}
+	aesEncryption(message)
 
 }
 
 /* SubBytes substitutes bytes in a string with their S-Box counterpart
 Returns string of bytes */
-func SubBytes(cipherText string) string {
+func SubBytes(cipherText string) (result string) {
 	//fmt.Printf("%s", cipherText[0:2])
-	var result string
 	var selectedHex string
 	for i := 0; i < 32; {
 		selectedHex = cipherText[i : i+2]
@@ -100,23 +100,59 @@ func SubBytes(cipherText string) string {
 		i += 2
 
 	}
-	return result
+	return
 
 }
 
-func ShiftRows(roundCipher string) string {
-	fmt.Printf("Before shifting: %v\n", roundCipher)
-	var result string
-	oneShift := ShiftRowsWork(roundCipher[8:16], 1)
-	twoShift := ShiftRowsWork(roundCipher[16:24], 2)
-	threeShift := ShiftRowsWork(roundCipher[24:32], 3)
-	result = roundCipher[0:8] + oneShift + twoShift + threeShift
-	fmt.Printf("After shifting: %v\n", result)
+func buildShiftGroups(workingString string) (groups []string) {
+	// No shift is [0:2], [8:10], [16:18], [24:26]
+	// One shift is [1:4], [10:12], [18:20], [26:28]
+	// Two shift is [3:6], [12:14], [20:22], [28:30]
+	// Three shift is [5:8], [14:16], [22:24], [30:32]
+	var noShift, oneShift, twoShift, threeShift string
+
+	for i := 0; i < 32; {
+		noShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, noShift)
+
+	for i := 2; i < 32; {
+		oneShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, oneShift)
+
+	for i := 4; i < 32; {
+		twoShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, twoShift)
+
+	for i := 6; i < 32; {
+		threeShift += workingString[i : i+2]
+		i += 8
+	}
+	groups = append(groups, threeShift)
+
+	//fmt.Printf("Groups: %s\n", groups)
+	return groups
+}
+
+func ShiftRows(roundCipher string) (result []string) {
+	result = make([]string, 4)
+	groups := buildShiftGroups(roundCipher)
+	result[0] = groups[0]
+	oneShift := ShiftRowsWork(groups[1], 1)
+	result[1] = oneShift
+	twoShift := ShiftRowsWork(groups[2], 2)
+	result[2] = twoShift
+	threeShift := ShiftRowsWork(groups[3], 3)
+	result[3] = threeShift
 	return result
 }
 
-func ShiftRowsWork(row string, shiftAmount int) string {
-	var copyStr string
+func ShiftRowsWork(row string, shiftAmount int) (copyStr string) {
 	switch shiftAmount {
 	case 1:
 		copyStr = row[2:]
@@ -130,14 +166,7 @@ func ShiftRowsWork(row string, shiftAmount int) string {
 		copyStr = row[6:]
 		copyStr += row[:6]
 	}
-	return copyStr
-}
-
-/* Hash the plain text
-Return byte[] */
-func hexMessage(message string) string {
-	hexText := fmt.Sprintf("%-032x", message)
-	return hexText
+	return
 }
 
 /* Get plain text to encrypt */
@@ -147,19 +176,29 @@ func getMessage() string {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan() // use `for scanner.Scan()` to keep reading
 	plainText = scanner.Text()
-	fmt.Printf("Entered plain text: %s\n", plainText)
 	return plainText
+}
+
+func encodeMessage(rawMessage string) (encodedMessage string) {
+	byteMessage := []byte(rawMessage)
+	encodedMessage = hex.EncodeToString(byteMessage)
+	return
 }
 
 /* main aes encryption function that calls the other 4 steps
 Returns ciphertext */
-func aes_encryption(cipherText string) {
+func aesEncryption(cipherText string) {
 	// Add round key
 	// SubBytes -- Working
 	cipherText = SubBytes(cipherText)
 	// ShiftRows -- In-Progress
-	ShiftRows(cipherText)
+	cipherGroups := ShiftRows(cipherText)
 
 	// MixColumns
+
 	// AddRoundKey
+}
+
+func mixColumns(cipherMatrix [4]string) (resultMatrix []string) {
+
 }
