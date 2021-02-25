@@ -16,14 +16,24 @@ import (
 )
 
 // AESChunk is the amount of bytes allowed for AES encryption
-var AESChunk = 16
+const AESChunk = 16
+
+// tempKey is a string to use for key schedule testing
+const tempKey = "73757065727365637265746b657931FF"
 
 // MixColumnsMatrix is a 4x4 matrix used for the mix columns step of AES
-var MixColumnsMatrix = [4][4]int64{
+var MixColumnsMatrix = [4][4]uint8{
 	{02, 03, 01, 01},
 	{01, 02, 03, 01},
 	{01, 01, 02, 03},
 	{03, 01, 01, 02}}
+
+// InverseMixMaxtrix is a 4x4 matrix used for the decryption of AES
+var InverseMixMaxtrix = [4][4]uint8{
+	{0x0e, 0x0b, 0x0d, 0x09},
+	{0x09, 0x0e, 0x0b, 0x0d},
+	{0x0d, 0x09, 0x0e, 0x0b},
+	{0x0b, 0x0d, 0x09, 0x0e}}
 
 //SBOX is Rinjindael S-Box
 var SBOX = [256]uint8{
@@ -63,11 +73,6 @@ var rsbox = [256]uint8{
 	0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
 	0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
 	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d}
-
-//Rcon is the round constant word array, Rcon[i], contains the values given by
-// x to the power (i-1) being powers of x (x is denoted as {02}) in the field GF(2^8)
-var Rcon = [11]uint8{
-	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36}
 
 // main drives the demonstration of the AES tools
 func main() {
@@ -136,13 +141,11 @@ func chunkMessage(message string, messageLen int) (chunks []string) {
 func SubBytes(cipherText string) (result string) {
 	//fmt.Printf("%s", cipherText[0:2])
 	var selectedHex string
-	for i := 0; i < 32; {
+	for i := 0; i < len(cipherText); {
 		selectedHex = cipherText[i : i+2]
 		hexInt, _ := strconv.ParseInt(selectedHex, 16, 0)
 		swap := SBOX[int(hexInt)]
-		//fmt.Printf("Swap: value - %x , type - %T \n", swap, swap)
-		result += fmt.Sprintf("%x", swap)
-		//fmt.Printf("SubBytes Result: %v\n", result)
+		result += fmt.Sprintf("%02x", swap)
 		i += 2
 
 	}
@@ -210,7 +213,7 @@ func ShiftRowsWork(row string, shiftAmount int) (copyStr string) {
 	return
 }
 
-/* Get plain text to encrypt */
+// getMessage gets plain text from stdio to encrypt
 func getMessage() string {
 	fmt.Println("Enter your message: ")
 	var plainText string
@@ -226,18 +229,54 @@ func encodeMessage(rawMessage string) (encodedMessage string) {
 	return
 }
 
+func maxtrixToString(matrix []string) (newString string) {
+	for _, substring := range matrix {
+		newString += substring
+	}
+	return
+}
+
+func addKey(cipherText string) (newString string) {
+	var subKey, subString int64
+	var err error
+	for i := 0; i <= len(cipherText); {
+		if i < 32 {
+			subString, _ = strconv.ParseInt(cipherText[i:i+2], 16, 0)
+			subKey, _ = strconv.ParseInt(tempKey[i:i+2], 16, 0)
+		} else {
+			subString, _ = strconv.ParseInt(cipherText[i:], 16, 0)
+			subKey, _ = strconv.ParseInt(tempKey[i:], 16, 0)
+		}
+
+		if err == nil {
+			xorVal := subString ^ subKey
+			newString += fmt.Sprintf("%02x", xorVal)
+			i += 2
+		} else {
+			break
+		}
+	}
+	return
+}
+
 /* main aes encryption function that calls the other 4 steps
 Returns ciphertext */
 func aesEncryption(toEncypt []string) {
 	cipherText := toEncypt[len(toEncypt)-1]
 	// Add round key
-	// SubBytes -- Working
-	cipherText = SubBytes(cipherText)
-	// ShiftRows -- Working
-	cipherMatrix := ShiftRows(cipherText)
-	// MixColumns -- Working?
-	cipherMatrix = mixColumns(cipherMatrix)
-	// AddRoundKey
+	cipherText = addKey(cipherText)
+
+	for i := 0; i < 10; i++ {
+		// SubBytes -- Working
+		cipherText = SubBytes(cipherText)
+		// ShiftRows -- Working
+		cipherMatrix := ShiftRows(cipherText)
+		// MixColumns -- Working?
+		cipherMatrix = mixColumns(cipherMatrix)
+		cipherText = maxtrixToString(cipherMatrix)
+		// AddRoundKey
+		cipherText = addKey(cipherText)
+	}
 
 	// STRUCTURE - Initial round
 
@@ -267,12 +306,22 @@ func mixColumns(cipherMatrix []string) (resultMatrix []string) {
 
 	for _, column := range mathMatrix {
 		//fmt.Printf("Col: %v, %v\n", col_index, column)
-		workingCol := buildBytes(column)
-		mixedCol := mixColumnMath(workingCol)
+		intCol := buildBytes(column)
+		mixedCol := mixColumnMath(intCol)
 		fmt.Printf("Mixed Column: %v\n", mixedCol)
+		resultMatrix = append(resultMatrix, toHexString(mixedCol))
 
 	}
 
+	return
+}
+
+// toHexString takes slice of ints and converts it to a single string
+func toHexString(array []int64) (hexString string) {
+	for _, value := range array {
+		hex := fmt.Sprintf("%02x", value)
+		hexString += hex
+	}
 	return
 }
 
@@ -291,7 +340,7 @@ func mathHelper(vector [][4]int64) (resultVector []int64) {
 
 // mixColumnMath performs galois matrix multiplicaton on a given vector
 // It uses the AES Mix Columns Maxtrix as the matrix to multiply the vector with
-func mixColumnMath(hexVector []int64) (mixedCol []int64) {
+func mixColumnMath(intVector []int64) (mixedCol []int64) {
 	matrixSlices := make([][4]int64, 0)
 	var tempArray [4]int64
 	var tempVal int64
@@ -299,14 +348,14 @@ func mixColumnMath(hexVector []int64) (mixedCol []int64) {
 
 		for colIndex, vectorVal := range rowVector {
 
-			currentHex := hexVector[colIndex]
+			currentVal := intVector[colIndex]
 
 			if vectorVal != 1 {
 
-				tempVal = currentHex * 2
+				tempVal = currentVal * 2
 
 				if vectorVal == 3 {
-					tempVal = tempVal ^ currentHex
+					tempVal = tempVal ^ currentVal
 				}
 
 				if tempVal > 255 { // Overflow
@@ -315,7 +364,7 @@ func mixColumnMath(hexVector []int64) (mixedCol []int64) {
 				}
 
 			} else {
-				tempVal = currentHex
+				tempVal = currentVal
 			}
 
 			tempArray[colIndex] = tempVal
