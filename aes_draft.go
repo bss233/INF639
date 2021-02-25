@@ -8,11 +8,15 @@ import (
 	"strconv"
 )
 
+// x^8 + x^4 + x^3 + x^1 + x^0 ---->>> 100011011
+
 // AESChunk is the amount of bytes allowed for AES encryption
 const AESChunk = 16
 
 // tempKey is a string to use for key schedule testing
 const tempKey = "73757065727365637265746b6579311B"
+
+const irrPoly uint16 = 0x011b
 
 // MixColumnsMatrix is a 4x4 matrix used for the mix columns step of AES
 var MixColumnsMatrix = [4][4]uint8{
@@ -75,21 +79,25 @@ func main() {
 	// Get message input from user
 	//message = getMessage() // Uncomment to get input from user
 	message = "This is a test.." // Len 16 for testing
+
+	test()
+
 	//message = "This is a test!!!" // Len 17 for testing
+
 	fmt.Printf("Message to encrypt: %v\n", message)
 	// Calculate message length, split into chunks of 16 characters, get any trailing characters
 	messageLen = len(message)
 	if messageLen < AESChunk {
 		message = fmt.Sprintf("%-32s", message)
 	}
-	chunks := chunkMessage(message, messageLen)
+	//chunks := chunkMessage(message, messageLen)
 
 	// Main work function
-	cipherText := aesEncryption(chunks)
-	fmt.Printf("Encrypted Message: %v\n", cipherText)
+	//cipherText := aesEncryption(chunks)
+	//fmt.Printf("Encrypted Message: %v\n", cipherText)
 
-	decryptedMessage := aesDecryption(cipherText)
-	fmt.Printf("Decrypted Message: %v\n", decryptedMessage)
+	//decryptedMessage := aesDecryption(cipherText)
+	//fmt.Printf("Decrypted Message: %v\n", decryptedMessage)
 
 }
 
@@ -243,12 +251,12 @@ func matrixToString(matrix []string) (newString string) {
 // addKey adds the round key to the cipherText
 func addKey(cipherText string) (newString string) {
 	var subKey, subString int64
-	var err error
+	var errS, errK error
 	for i := 0; i <= len(cipherText); {
 		if i < 32 {
-			subString, _ = strconv.ParseInt(cipherText[i:i+2], 16, 0)
-			subKey, _ = strconv.ParseInt(tempKey[i:i+2], 16, 0)
-			if err == nil {
+			subString, errS = strconv.ParseInt(cipherText[i:i+2], 16, 0)
+			subKey, errK = strconv.ParseInt(tempKey[i:i+2], 16, 0)
+			if errS == nil && errK == nil {
 				xorVal := subString ^ subKey
 				newString += fmt.Sprintf("%02x", xorVal)
 				i += 2
@@ -267,17 +275,20 @@ func aesDecryption(toDecrypt string) (plainText string) {
 	var workingMatrix []string
 	workingString := addKey(toDecrypt)
 	groups := buildShiftGroups(workingString)
+	workingMatrix = groups
 	for i := 0; i < 13; i++ {
 		// Inv Mix
-		workingMatrix = mixColumns(groups, true)
+		workingMatrix = mixColumns(workingMatrix, 0)
 		workingString = matrixToString(workingMatrix)
 		// Key addition
 		workingString = addKey(workingString)
 		// InvByte Sub
 		workingString = InvSubBytes(workingString)
 		// Inv Shift Rows
+		workingMatrix = invShiftRows(workingString)
 	}
 	// Inv Shift
+	workingMatrix = invShiftRows(workingString)
 	// InvByte sub
 	workingString = InvSubBytes(workingString)
 	// Key addition
@@ -299,7 +310,7 @@ func aesEncryption(toEncypt []string) (cipherText string) {
 		// ShiftRows -- Working
 		cipherMatrix := ShiftRows(cipherText)
 		// MixColumns -- Working?
-		cipherMatrix = mixColumns(cipherMatrix, false)
+		cipherMatrix = mixColumns(cipherMatrix, 1)
 		cipherText = matrixToString(cipherMatrix)
 		// AddRoundKey
 		cipherText = addKey(cipherText)
@@ -333,21 +344,14 @@ func buildMathMatrix(inString []string) (mathMatrix []string) {
 	return
 }
 
-func mixColumns(cipherMatrix []string, inverse bool) (resultMatrix []string) {
+func mixColumns(cipherMatrix []string, matrixSelect int) (resultMatrix []string) {
 	// builds a string consisting of all items in the same column
 	mathMatrix := buildMathMatrix(cipherMatrix)
 	var mixedCol []int64
 	for _, column := range mathMatrix {
 		// Turn the string hex into individual ints
 		intCol := buildBytes(column)
-
-		if inverse {
-			mixedCol = invMixColMath(intCol)
-
-		} else {
-			mixedCol = mixColumnMath(intCol)
-		}
-
+		mixedCol = mixColMath(intCol, matrixSelect)
 		resultMatrix = append(resultMatrix, toHexString(mixedCol))
 	}
 
@@ -376,82 +380,47 @@ func mathHelper(vector [][4]int64) (resultVector []int64) {
 	return
 }
 
-// mixColumnMath performs galois matrix multiplicaton on a given vector
-// It uses the AES Mix Columns Maxtrix as the matrix to multiply the vector with
-func mixColumnMath(intVector []int64) (mixedCol []int64) {
+func mixColMath(intVector []int64, matrixSelect int) (mixedCol []int64) {
 	matrixSlices := make([][4]int64, 0)
 	var tempArray [4]int64
 	var tempVal int64
-	// Loop over the Mix Column Matrix
-	// Defined at start of file
-	for _, rowVector := range MixColumnsMatrix {
-
-		for colIndex, vectorVal := range rowVector {
-			currentVal := intVector[colIndex]
-
-			if vectorVal != 1 {
-
-				tempVal = currentVal * 2
-
-				if vectorVal == 3 {
-					tempVal = tempVal ^ currentVal
-				}
-
-				// Keep everything in an 8 bit form
-				if tempVal > 255 { // 255 == FF Overflow
-					xorVal := (tempVal ^ 27) - 256 // 1B in Hex
-					tempVal = xorVal
-				}
-
-			} else {
-				tempVal = currentVal
-			}
-
-			tempArray[colIndex] = tempVal
-			if colIndex == 3 {
-				matrixSlices = append(matrixSlices, tempArray)
-			}
-
-		}
+	var mixMatrix [4][4]uint8
+	switch matrixSelect {
+	case 0:
+		mixMatrix = MixColumnsMatrix
+	case 1:
+		mixMatrix = InverseMixMaxtrix
 	}
-
-	mixedCol = mathHelper(matrixSlices)
-	return
-}
-
-func invMixColMath(intVector []int64) (mixedCol []int64) {
-	matrixSlices := make([][4]int64, 0)
-	var tempArray [4]int64
-	var tempVal int64
-	for _, rowVector := range InverseMixMaxtrix {
+	for _, rowVector := range mixMatrix {
 
 		for colIndex, vectorVal := range rowVector {
 			currentVal := intVector[colIndex]
 			tempVal = currentVal
 			switch vectorVal {
+			case 1:
+				tempVal = currentVal
+
+			case 2:
+				tempVal = (tempVal * 2)
+
+			case 3:
+				tempVal = (tempVal * 3)
 
 			case 9:
-				tempVal = (((tempVal * 2) * 2) * 2)
-				tempVal = tempVal ^ currentVal
+				tempVal = (tempVal * 9)
 
 			case 11:
-				tempVal = ((tempVal * 2) * 2) ^ currentVal
-				tempVal = (tempVal * 2) ^ currentVal
+				tempVal = (tempVal * 11)
 
 			case 13:
-				tempVal = (tempVal * 2) ^ currentVal
-				tempVal = ((tempVal * 2) * 2) ^ currentVal
+				tempVal = (tempVal * 13)
 
 			case 14:
-				tempVal = (tempVal * 2) ^ currentVal
-				tempVal = (tempVal * 2) ^ currentVal
-				tempVal = tempVal * 2
+				tempVal = (tempVal * 14)
 			}
 
-			// Keep everything in an 8 bit form
-			if tempVal > 255 { // 255 == FF Overflow
-				xorVal := (tempVal ^ 27) - 256 // 1B in Hex
-				tempVal = xorVal
+			if tempVal > int64(irrPoly) {
+				tempVal = tempVal ^ int64(irrPoly)
 			}
 
 			tempArray[colIndex] = tempVal
@@ -475,4 +444,82 @@ func buildBytes(hexString string) (hexArray []int64) {
 		hexArray = append(hexArray, hexInt)
 	}
 	return
+}
+
+func invShiftRows(roundCipher string) (result []string) {
+	result = make([]string, 4)
+	groups := buildShiftGroups(roundCipher)
+	result[0] = groups[0]
+	oneShift := ShiftRowsWork(groups[1], 3)
+	result[1] = oneShift
+	twoShift := ShiftRowsWork(groups[2], 2)
+	result[2] = twoShift
+	threeShift := ShiftRowsWork(groups[3], 1)
+	result[3] = threeShift
+	return result
+}
+
+func test() {
+	message := "aaaaaaaaaaaaaaaa" // Len 16 for testing
+	fmt.Printf("Testing with message: %v\n", message)
+
+	encodedMessage := encodeMessage(message)
+	fmt.Printf("Encoded Message: %v\n", encodedMessage)
+
+	///////////////////////////////////////////////////////
+
+	// Test that we can add the key twice and get the same value
+	addKeyOne := addKey(encodedMessage)
+	fmt.Printf("Message after key addition: %v\n", addKeyOne)
+	fmt.Println()
+	//addKeyTwo := addKey(addKeyOne)
+	//fmt.Printf("Message after second key addition: %v\n", addKeyTwo)
+	// bool check
+	//fmt.Printf("Undo xor pass: %v\n\n", encodedMessage == addKeyTwo)
+
+	///////////////////////////////////////////////////////////
+
+	// Test that we can sub bytes then inverse and get the original string
+	subBytesEncrypt := SubBytes(addKeyOne)
+	fmt.Printf("Message after Sub Bytes: %v\n", subBytesEncrypt)
+	fmt.Println()
+
+	//subBytesDecrypt := InvSubBytes(subBytesEncrypt)
+	//fmt.Printf("Message after Inv Sub Bytes: %v\n", subBytesDecrypt)
+	// bool check
+	//fmt.Printf("Undo Shift pass: %v\n\n", addKeyOne == subBytesDecrypt)
+
+	/////////////////////////////////////////////////////////
+
+	// Test that we can shift rows then inverse shift
+	shiftRowsEncrypt := ShiftRows(subBytesEncrypt)
+	fmt.Printf("Message after Shift Rows: %v\n", shiftRowsEncrypt)
+	fmt.Println()
+
+	backToStringEncrypt := matrixToString(shiftRowsEncrypt)
+	fmt.Printf("From matrix to string: %v\n", backToStringEncrypt)
+	fmt.Println()
+
+	//shiftRowsDecrypt := invShiftRows(backToStringEncrypt)
+	//fmt.Printf("Message after Inv Shift Rows: %v\n", shiftRowsDecrypt)
+
+	//backToStringDecrypt := matrixToString(shiftRowsDecrypt)
+	//fmt.Printf("From matrix to string: %v\n", backToStringDecrypt)
+	// bool check
+	//fmt.Printf("Compare after inv shift: %v\n\n", subBytesEncrypt == backToStringDecrypt)
+
+	//////////////////////////////////////////////////////////////
+	fmt.Println("Mix Columns")
+
+	// Test mix columns
+	mixColEncrypt := mixColumns(shiftRowsEncrypt, 0)
+	//fmt.Printf("After Encrypt Mix: %v\n", mixColEncrypt)
+	colEncryptString := matrixToString(mixColEncrypt)
+	fmt.Printf("From matrix to string: %v\n", colEncryptString)
+
+	mixColDecrypt := mixColumns(mixColEncrypt, 1)
+	fmt.Printf("After Decrypt Mix: %v\n", mixColDecrypt)
+	colDecryptString := matrixToString(mixColDecrypt)
+	fmt.Printf("From matrix to string: %v\n", colDecryptString)
+
 }
