@@ -10,13 +10,12 @@ func test() {
 	fmt.Printf("Testing with message: %v\n", message)
 	chunks := chunkMessage(message)
 	fmt.Printf("Chunks: \n%v", chunks)
-	encodedMessage := encodeMessage(message)
 	//fmt.Printf("Encoded Message: %v\n", encodedMessage)
 
 	///////////////////////////////////////////////////////
 
 	// Test that we can add the key twice and get the same value
-	addKeyOne := addKey(encodedMessage)
+	addKeyOne := addKey(chunks[0])
 	fmt.Printf("Message after key addition: %v\n", addKeyOne)
 	fmt.Println()
 	//addKeyTwo := addKey(addKeyOne)
