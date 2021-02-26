@@ -1,5 +1,7 @@
 package main
 
+import "math/bits"
+
 // AESChunk is the byte length accepted by AES
 const AESChunk = 16
 
@@ -86,30 +88,15 @@ func subBytes(CipherText []uint8, LT [256]uint8) (Result []uint8) {
 	return
 }
 
-// toMatrixForm takes a 16 byte []uint8 and converts it into
-// 4, 4 byte []uint8, in row major order
-func toMatrixForm(CipherText []uint8) (Matrix [][]uint8) {
-
-	var NoShift, OneShift, TwoShift, ThreeShift []uint8
-
-	Matrix = [][]uint8{NoShift, OneShift, TwoShift, ThreeShift}
-
-	for Index, Hex := range CipherText {
-		Matrix[Index%4] = append(Matrix[Index%4], Hex)
-	}
-
-	return
-}
-
 // ShiftRows does the Shift Rows operation in AES encryption
 // uses ShiftRowsWork as a helper function
 func shiftRows(CipherText []uint8) (ShiftedCipher []uint8) {
 
-	MatrixForm := toMatrixForm(CipherText)
+	MatrixForm := toShiftForm(CipherText)
 
 	ShiftedMatrix := shiftRowsWork(MatrixForm)
 
-	ShiftedCipher = fromMatrixForm(ShiftedMatrix)
+	ShiftedCipher = fromShiftForm(ShiftedMatrix)
 
 	return
 }
@@ -136,16 +123,68 @@ func shiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
 	return
 }
 
-// fromMatrixForm takes a [][]uint8 representing a hex string
-// as a matrix, into a signel []uint8 representing a hex string
-func fromMatrixForm(Matrix [][]uint8) (CipherText []uint8) {
+// mixColumns performs the mix column operation of AES
+func mixColumns(CipherText []uint8, MatrixSelect int) (MixedCipher []uint8) {
+	MatrixForm := toMixForm(CipherText)
 
-	for Row := 0; Row < len(Matrix); Row++ {
+	MixedMatrix := mixColumnsWork(MatrixForm, MatrixSelect)
 
-		for Col := 0; Col < len(Matrix); Col++ {
-			CipherText = append(CipherText, Matrix[Col][Row])
-		}
+	MixedCipher = fromMixForm(MixedMatrix)
+	return
+}
 
+func mixColumnsWork(Matrix [][]uint8, MatrixSelect int) (MixedMatrix [][]uint8) {
+	var MixMatrix [4][4]uint8
+
+	switch MatrixSelect {
+	case 0:
+		MixMatrix = MixColumnsMatrix
+
+	case 1:
+		MixMatrix = InverseMixMaxtrix
+	default:
+		MixMatrix = MixColumnsMatrix
 	}
+	var TempArr [][]uint8
+	for _, Column := range Matrix {
+		TempArr = append(TempArr, mixMath(Column, MixMatrix))
+	}
+	return
+}
+
+// mixMath multiplies a column vector by a MixMatrix set by mixColumns
+func mixMath(Column []uint8, MixMatrix [4][4]uint8) (RVector []uint8) {
+	var VectorList [][]uint8
+	var TempArr []uint8
+	var VectorVal uint8
+	for _, Row := range MixMatrix {
+		for ColIndex, Val := range Row {
+			VectorVal = Column[ColIndex]
+			TempArr = append(TempArr, modMultiply(VectorVal, Val))
+		}
+		VectorList = append(VectorList, TempArr)
+	}
+
+	return
+}
+
+// modMultiply does modulo multiplication between two uint8 values
+func modMultiply(ValOne uint8, ValTwo uint8) (Result uint8) {
+	AVal := uint(ValOne)
+	BVal := uint(ValTwo)
+	var Carry uint
+	var PVal uint = 0
+	for Counter := 0; Counter < 8; Counter++ {
+		if bits.TrailingZeros(BVal) == 0 {
+			PVal ^= AVal
+		}
+		Carry = AVal & 0x80
+		AVal <<= 1
+		if Carry != 0 {
+			AVal ^= 0x001B
+		}
+		BVal >>= 1
+	}
+	Result = uint8(PVal)
 	return
 }

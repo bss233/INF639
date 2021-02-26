@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strconv"
 )
 
 // getMessage gets plain text from stdio to encrypt
@@ -73,13 +72,60 @@ func toHexString(array []int64) (hexString string) {
 	return
 }
 
-// buildBytes converts a string of length 8 to an array of integers
-// It expects 8 characters which should represent 4 hex pairs
-func buildBytes(hexString string) (hexArray []int64) {
-	for i := 0; i < 8; {
-		hexInt, _ := strconv.ParseInt(hexString[i:i+2], 16, 0)
-		i += 2
-		hexArray = append(hexArray, hexInt)
+// buildColumn is used to arrange the given string into "AES Columns"
+// AES Columns strings comprised of all hex pairs at a given index
+func buildColumn(matrix []string, startIndex int) (newCol string) {
+	for _, value := range matrix {
+		newCol += value[startIndex : startIndex+2]
+	}
+	return newCol
+}
+
+// toMatrixForm takes a 16 byte []uint8 and converts it into
+// 4, 4 byte []uint8, that contain all elements that would be
+// in the same row if in column major order (as AES uses)
+func toShiftForm(CipherText []uint8) (Matrix [][]uint8) {
+
+	var NoShift, OneShift, TwoShift, ThreeShift []uint8
+
+	Matrix = [][]uint8{NoShift, OneShift, TwoShift, ThreeShift}
+
+	for Index, Hex := range CipherText {
+		Matrix[Index%4] = append(Matrix[Index%4], Hex)
+	}
+
+	return
+}
+
+// fromMatrixForm takes a [][]uint8 representing a hex string
+// as a matrix, into a signel []uint8 representing a hex string
+func fromShiftForm(Matrix [][]uint8) (CipherText []uint8) {
+
+	for Row := 0; Row < len(Matrix); Row++ {
+
+		for Col := 0; Col < len(Matrix); Col++ {
+			CipherText = append(CipherText, Matrix[Col][Row])
+		}
+
+	}
+	return
+}
+
+// toMixForm is used in the Mix Columns step and transforms
+// a []uint8 of len 16 to a Matrix in col major order
+func toMixForm(CipherText []uint8) (Matrix [][]uint8) {
+	for i := 0; i < 16; {
+		Matrix = append(Matrix, CipherText[i:i+4])
+		i += 4
+	}
+	return
+}
+
+func fromMixForm(Matrix [][]uint8) (CipherText []uint8) {
+	for _, Col := range Matrix {
+		for _, Hex := range Col {
+			CipherText = append(CipherText, Hex)
+		}
 	}
 	return
 }

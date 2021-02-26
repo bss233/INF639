@@ -30,4 +30,9 @@ func test() {
 
 	WorkingChunk = shiftRows(WorkingChunk)
 	fmt.Printf("After shiftRows: %v\n\n", WorkingChunk)
+
+	Test := toMixForm(WorkingChunk)
+	fmt.Printf("toMixForm Result: %v\n\n", Test)
+	fromMix := fromMixForm(Test)
+	fmt.Printf("fromMixForm Result: %v\n\n", fromMix)
 }
