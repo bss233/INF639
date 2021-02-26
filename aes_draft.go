@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"strconv"
 )
 
@@ -13,8 +11,14 @@ import (
 // AESChunk is the amount of bytes allowed for AES encryption
 const AESChunk = 16
 
-// tempKey is a string to use for key schedule testing
-const tempKey = "73757065727365637265746b6579311B"
+// roundKeys is an array of Keys to uses in key scheduling
+var roundKeys = [6][16]uint8{
+	{0x73, 0x75, 0x70, 0x65, 0x72, 0x73, 0x65, 0x63, 0x72, 0x65, 0x74, 0x6b, 0x65, 0x79, 0x31, 0x1B},
+	{0x71, 0x80, 0xba, 0x43, 0xcb, 0x15, 0xd3, 0x73, 0xa9, 0x19, 0x44, 0x6f, 0x91, 0x7e, 0x87, 0x29},
+	{0xda, 0xf4, 0x7d, 0x8d, 0x3a, 0x32, 0x17, 0x2c, 0x4b, 0xbc, 0x43, 0x81, 0x6c, 0xb2, 0xa9, 0x6b},
+	{0x84, 0x8d, 0x9d, 0xa1, 0xf3, 0x61, 0xb8, 0x71, 0xd2, 0x85, 0x7a, 0x40, 0xce, 0xb5, 0xe8, 0x12},
+	{0x6b, 0x48, 0xea, 0x2d, 0x89, 0xcd, 0xcd, 0xa0, 0xbe, 0x6e, 0x99, 0x9b, 0x7a, 0xdf, 0x9b, 0xbb},
+	{0x2c, 0x78, 0x48, 0x35, 0x34, 0xde, 0x10, 0x70, 0xa2, 0x52, 0x65, 0x90, 0x58, 0xb6, 0x38, 0x42}}
 
 // MixColumnsMatrix is a 4x4 matrix used for the mix columns step of AES
 var MixColumnsMatrix = [4][4]uint8{
@@ -77,9 +81,6 @@ func main() {
 	// Get message input from user
 	//message = getMessage() // Uncomment to get input from user
 	message = "This is a test.." // Len 16 for testing
-
-	test()
-
 	//message = "This is a test!!!" // Len 17 for testing
 
 	fmt.Printf("Message to encrypt: %v\n", message)
@@ -212,36 +213,8 @@ func ShiftRowsWork(row string, shiftAmount int) (copyStr string) {
 	return
 }
 
-// getMessage gets plain text from stdio to encrypt
-func getMessage() string {
-	fmt.Println("Enter your message: ")
-	var plainText string
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan() // use `for scanner.Scan()` to keep reading
-	plainText = scanner.Text()
-	return plainText
-}
-
-// encodeMessage encodes a message into hexidecimal
-func encodeMessage(rawMessage string) (encodedMessage string) {
-	byteMessage := []byte(rawMessage)
-	encodedMessage = hex.EncodeToString(byteMessage)
-	return
-}
-
-// matrixToString takes an array of strings and combines them into one string
-func matrixToString(matrix []string) (newString string) {
-	for stringIndex := 0; stringIndex < 8; {
-		for listIndex := 0; listIndex < 4; listIndex++ {
-			newString += matrix[listIndex][stringIndex : stringIndex+2]
-		}
-		stringIndex += 2
-	}
-	return
-}
-
 // addKey adds the round key to the cipherText
-func addKey(cipherText string) (newString string) {
+func addKey() (newString string) {
 	var subKey, subString int64
 	var errS, errK error
 	for i := 0; i <= len(cipherText); {
@@ -350,15 +323,6 @@ func mixColumns(cipherMatrix []string, matrixSelect int) (resultMatrix []string)
 	return
 }
 
-// toHexString takes slice of ints and converts it to a single string
-func toHexString(array []int64) (hexString string) {
-	for _, value := range array {
-		hex := fmt.Sprintf("%02x", value)
-		hexString += hex
-	}
-	return
-}
-
 // mathHelper xors all values in a vector and returns the result
 func mathHelper(vector [][4]int64) (resultVector []int64) {
 	var val int64
@@ -423,17 +387,6 @@ func mixColMath(intVector []int64, matrixSelect int) (mixedCol []int64) {
 	return
 }
 
-// buildBytes converts a string of length 8 to an array of integers
-// It expects 8 characters which should represent 4 hex pairs
-func buildBytes(hexString string) (hexArray []int64) {
-	for i := 0; i < 8; {
-		hexInt, _ := strconv.ParseInt(hexString[i:i+2], 16, 0)
-		i += 2
-		hexArray = append(hexArray, hexInt)
-	}
-	return
-}
-
 func invShiftRows(roundCipher string) (result []string) {
 	result = make([]string, 4)
 	groups := buildShiftGroups(roundCipher)
@@ -445,71 +398,4 @@ func invShiftRows(roundCipher string) (result []string) {
 	threeShift := ShiftRowsWork(groups[3], 1)
 	result[3] = threeShift
 	return result
-}
-
-func test() {
-	//message := "aaaaaaaaaaaaaaaa" // Len 16 for testing
-	message := "This is a test!!!" // Len 17 for testing
-	fmt.Printf("Testing with message: %v\n", message)
-	chunks := chunkMessage(message)
-	fmt.Printf("Chunks: \n%v", chunks)
-	encodedMessage := encodeMessage(message)
-	//fmt.Printf("Encoded Message: %v\n", encodedMessage)
-
-	///////////////////////////////////////////////////////
-
-	// Test that we can add the key twice and get the same value
-	addKeyOne := addKey(encodedMessage)
-	fmt.Printf("Message after key addition: %v\n", addKeyOne)
-	fmt.Println()
-	//addKeyTwo := addKey(addKeyOne)
-	//fmt.Printf("Message after second key addition: %v\n", addKeyTwo)
-	// bool check
-	//fmt.Printf("Undo xor pass: %v\n\n", encodedMessage == addKeyTwo)
-
-	///////////////////////////////////////////////////////////
-
-	// Test that we can sub bytes then inverse and get the original string
-	subBytesEncrypt := SubBytes(addKeyOne)
-	fmt.Printf("Message after Sub Bytes: %v\n", subBytesEncrypt)
-	fmt.Println()
-
-	//subBytesDecrypt := InvSubBytes(subBytesEncrypt)
-	//fmt.Printf("Message after Inv Sub Bytes: %v\n", subBytesDecrypt)
-	// bool check
-	//fmt.Printf("Undo Shift pass: %v\n\n", addKeyOne == subBytesDecrypt)
-
-	/////////////////////////////////////////////////////////
-
-	// Test that we can shift rows then inverse shift
-	shiftRowsEncrypt := ShiftRows(subBytesEncrypt)
-	fmt.Printf("Message after Shift Rows: %v\n", shiftRowsEncrypt)
-	fmt.Println()
-
-	backToStringEncrypt := matrixToString(shiftRowsEncrypt)
-	fmt.Printf("From matrix to string: %v\n", backToStringEncrypt)
-	fmt.Println()
-
-	//shiftRowsDecrypt := invShiftRows(backToStringEncrypt)
-	//fmt.Printf("Message after Inv Shift Rows: %v\n", shiftRowsDecrypt)
-
-	//backToStringDecrypt := matrixToString(shiftRowsDecrypt)
-	//fmt.Printf("From matrix to string: %v\n", backToStringDecrypt)
-	// bool check
-	//fmt.Printf("Compare after inv shift: %v\n\n", subBytesEncrypt == backToStringDecrypt)
-
-	//////////////////////////////////////////////////////////////
-	fmt.Println("Mix Columns")
-
-	// Test mix columns
-	mixColEncrypt := mixColumns(shiftRowsEncrypt, 0)
-	//fmt.Printf("After Encrypt Mix: %v\n", mixColEncrypt)
-	colEncryptString := matrixToString(mixColEncrypt)
-	fmt.Printf("From matrix to string: %v\n", colEncryptString)
-
-	mixColDecrypt := mixColumns(mixColEncrypt, 1)
-	fmt.Printf("After Decrypt Mix: %v\n", mixColDecrypt)
-	colDecryptString := matrixToString(mixColDecrypt)
-	fmt.Printf("From matrix to string: %v\n", colDecryptString)
-
 }
