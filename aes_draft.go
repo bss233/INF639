@@ -16,8 +16,6 @@ const AESChunk = 16
 // tempKey is a string to use for key schedule testing
 const tempKey = "73757065727365637265746b6579311B"
 
-const irrPoly uint16 = 0x011b
-
 // MixColumnsMatrix is a 4x4 matrix used for the mix columns step of AES
 var MixColumnsMatrix = [4][4]uint8{
 	{0x02, 0x03, 0x01, 0x01},
@@ -104,32 +102,16 @@ func main() {
 // chunkMessage takes a string and chunks it for AES
 // the resulting chunks are 16 bytes in length
 // chunks has an additional element at the last index that contains a string reduction of it's contents
-func chunkMessage(message string, messageLen int) (chunks []string) {
-	var minIndex int
-	var maxIndex int
-	var remainder int
-	var messageChunk string
-	lazy := ""
-	chunks = make([]string, 0)
-	numChunks := messageLen / AESChunk
-	for index := 0; index <= numChunks; index++ {
-		// Getindex of current chunk range
-		minIndex = index * AESChunk
-		maxIndex = minIndex + AESChunk
-
-		// Check for index out of bounds, then chunk is the remainder, otherwise grab current chunk
-		if maxIndex > messageLen {
-			remainder = messageLen % AESChunk
-			messageChunk = message[messageLen-remainder:]
-		} else {
-			messageChunk = message[minIndex:maxIndex]
+func chunkMessage(message string) (chunks [][]uint8) {
+	var tempArr []uint8
+	for index, character := range message {
+		if (index != 0) && (index%AESChunk) == 0 {
+			chunks = append(chunks, tempArr)
+			tempArr = make([]uint8, 0)
 		}
-		// Convert chunk to hex, overwrite plaintext chunk (good design choice?)
-		messageChunk = encodeMessage(messageChunk)
-		lazy += messageChunk
-		chunks = append(chunks, messageChunk)
+		tempArr = append(tempArr, uint8(character))
 	}
-	chunks = append(chunks, lazy)
+	chunks = append(chunks, tempArr)
 	return
 }
 
@@ -419,10 +401,6 @@ func mixColMath(intVector []int64, matrixSelect int) (mixedCol []int64) {
 				tempVal = (tempVal * 14)
 			}
 
-			if tempVal > int64(irrPoly) {
-				tempVal = tempVal ^ int64(irrPoly)
-			}
-
 			tempArray[colIndex] = tempVal
 			if colIndex == 3 {
 				matrixSlices = append(matrixSlices, tempArray)
@@ -460,9 +438,11 @@ func invShiftRows(roundCipher string) (result []string) {
 }
 
 func test() {
-	message := "aaaaaaaaaaaaaaaa" // Len 16 for testing
+	//message := "aaaaaaaaaaaaaaaa" // Len 16 for testing
+	message := "This is a test!!!" // Len 17 for testing
 	fmt.Printf("Testing with message: %v\n", message)
-
+	chunks := chunkMessage(message)
+	fmt.Printf("Chunks: \n%v", chunks)
 	encodedMessage := encodeMessage(message)
 	fmt.Printf("Encoded Message: %v\n", encodedMessage)
 
