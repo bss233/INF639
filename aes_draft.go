@@ -112,6 +112,16 @@ func chunkMessage(message string) (chunks [][]uint8) {
 		tempArr = append(tempArr, uint8(character))
 	}
 	chunks = append(chunks, tempArr)
+	chunks[len(chunks)-1] = addPadding(chunks[len(chunks)-1])
+	return
+}
+
+func addPadding(toPad []uint8) (padded []uint8) {
+	padded = toPad
+	padVal := AESChunk - len(padded)
+	for len(padded) < AESChunk {
+		padded = append(padded, uint8(padVal))
+	}
 	return
 }
 
@@ -444,7 +454,7 @@ func test() {
 	chunks := chunkMessage(message)
 	fmt.Printf("Chunks: \n%v", chunks)
 	encodedMessage := encodeMessage(message)
-	fmt.Printf("Encoded Message: %v\n", encodedMessage)
+	//fmt.Printf("Encoded Message: %v\n", encodedMessage)
 
 	///////////////////////////////////////////////////////
 
