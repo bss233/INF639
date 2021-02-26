@@ -1,8 +1,9 @@
 package main
 
+// AESChunk is the byte length accepted by AES
 const AESChunk = 16
 
-// roundKeys is an array of Keys to uses in key scheduling
+// RoundKeys is an array of Keys to uses in key scheduling
 var RoundKeys = [6][16]uint8{
 	{0x73, 0x75, 0x70, 0x65, 0x72, 0x73, 0x65, 0x63, 0x72, 0x65, 0x74, 0x6b, 0x65, 0x79, 0x31, 0x1B},
 	{0x71, 0x80, 0xba, 0x43, 0xcb, 0x15, 0xd3, 0x73, 0xa9, 0x19, 0x44, 0x6f, 0x91, 0x7e, 0x87, 0x29},
@@ -45,7 +46,7 @@ var SBOX = [256]uint8{
 	0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
 	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16}
 
-// Reverse S-Box for decryption
+// RSBOX is the Reverse S-Box for decryption
 var RSBOX = [256]uint8{
 	0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
 	0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -76,10 +77,10 @@ func addKey(CipherText []uint8) (AfterKey []uint8) {
 
 // subBytes substitutes bytes in a string with their S-Box counterpart
 // Returns string of bytes
-func subBytes(CipherText []uint8) (Result []uint8) {
+func subBytes(CipherText []uint8, LT [256]uint8) (Result []uint8) {
 
 	for _, Hex := range CipherText {
-		Result = append(Result, SBOX[Hex])
+		Result = append(Result, LT[Hex])
 	}
 
 	return
@@ -94,7 +95,7 @@ func toMatrixForm(CipherText []uint8) (Matrix [][]uint8) {
 	Matrix = [][]uint8{NoShift, OneShift, TwoShift, ThreeShift}
 
 	for Index, Hex := range CipherText {
-		Matrix[Index%4] = append(Matrix[Index], Hex)
+		Matrix[Index%4] = append(Matrix[Index%4], Hex)
 	}
 
 	return
@@ -122,13 +123,14 @@ func shiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
 
 		TempArr = make([]uint8, 0)
 
-		for Iter := RowIndex; Iter < len(Row); {
+		for Iter := RowIndex; Iter < len(Row); Iter++ {
 			TempArr = append(TempArr, Row[Iter])
 		}
 
-		for Iter := 0; Iter < RowIndex; {
+		for Iter := 0; Iter < RowIndex; Iter++ {
 			TempArr = append(TempArr, Row[Iter])
 		}
+		ShiftedMatrix = append(ShiftedMatrix, TempArr)
 
 	}
 	return

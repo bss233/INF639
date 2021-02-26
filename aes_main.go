@@ -11,6 +11,7 @@ import (
 
 // main drives the demonstration of the AES tools
 func main() {
+	test()
 	// Get message
 	// Chunk message
 	// AES over chunks

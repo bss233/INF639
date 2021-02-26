@@ -1,3 +1,3 @@
-module aes_draft
+module aes_main
 
 go 1.16
