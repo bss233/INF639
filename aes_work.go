@@ -128,6 +128,8 @@ func shiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
 	return
 }
 
+// inverseShiftRowsWork does the same thing as shift rows but makes
+// row 1 shift 3 and row 4 (3 base 0), shift 1
 func inverseShiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
 
 	var TempArr []uint8
@@ -169,6 +171,9 @@ func mixColumns(CipherText []uint8, MatrixSelect int) (MixedCipher []uint8) {
 	return
 }
 
+// mixColumnsWork takes in a matrix and mixes each column in the matrix using
+// a one of the two mix matrixes, specified by MatrixSelect
+// 0 = Encrypt --- 1 = Decrypt
 func mixColumnsWork(Matrix [][]uint8, MatrixSelect int) (MixedMatrix [][]uint8) {
 	var MixMatrix [4][4]uint8
 
