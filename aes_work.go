@@ -135,14 +135,24 @@ func inverseShiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
 	for RowIndex, Row := range RowMatrix {
 
 		TempArr = make([]uint8, 0)
+		if RowIndex == 0 || RowIndex == 2 {
+			for Iter := RowIndex; Iter < len(Row); Iter++ {
+				TempArr = append(TempArr, Row[Iter])
+			}
 
-		for Iter := 0; Iter < RowIndex; Iter++ {
-			TempArr = append(TempArr, Row[Iter])
-		}
-		ShiftedMatrix = append(ShiftedMatrix, TempArr)
+			for Iter := 0; Iter < RowIndex; Iter++ {
+				TempArr = append(TempArr, Row[Iter])
+			}
+			ShiftedMatrix = append(ShiftedMatrix, TempArr)
+		} else {
+			for Iter := len(Row) - RowIndex; Iter < len(Row); Iter++ {
+				TempArr = append(TempArr, Row[Iter])
+			}
 
-		for Iter := RowIndex; Iter < len(Row); Iter++ {
-			TempArr = append(TempArr, Row[Iter])
+			for Iter := 0; Iter < len(Row)-RowIndex; Iter++ {
+				TempArr = append(TempArr, Row[Iter])
+			}
+			ShiftedMatrix = append(ShiftedMatrix, TempArr)
 		}
 
 	}
