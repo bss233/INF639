@@ -129,3 +129,16 @@ func fromMixForm(Matrix [][]uint8) (CipherText []uint8) {
 	}
 	return
 }
+
+// mathHelper xors all values in a vector and returns the result
+func mathHelper(vector [][4]int64) (resultVector []int64) {
+	var val int64
+	for _, vectorSet := range vector {
+		val = vectorSet[0]
+		for i := 1; i < 4; i++ {
+			val = val ^ vectorSet[i]
+		}
+		resultVector = append(resultVector, val)
+	}
+	return
+}

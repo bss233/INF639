@@ -4,35 +4,56 @@ import (
 	"fmt"
 )
 
-func test() {
+func test(Rounds int) {
 	Message := "This is a test.." // Len 16 for testing
-	//Message := "This is a test!!!" // Len 17 for testing
-	fmt.Printf("Using message: %s \n", Message)
-
-	//fromUser := getMessage()
-
+	fmt.Printf("Using Message : %v\n", Message)
+	// Add round key
 	Chunks := chunkMessage(Message)
-	fmt.Printf("Chunks: %v\n", Chunks)
-	println()
 
-	WorkingChunk := Chunks[0]
-	WorkingChunk = addKey(WorkingChunk)
-	fmt.Printf("After Key Addition: %v\n", WorkingChunk)
-	println()
+	fmt.Printf("Emulating AES after %v rounds\n", Rounds)
+	CipherText := addKey(Chunks[0])
+	// loop
+	for i := 0; i < Rounds; i++ {
+		// SubBytes -- Working
+		CipherText = subBytes(CipherText, SBOX)
+		// ShiftRows -- Working
+		CipherText = shiftRows(CipherText, false)
+		// MixColumns -- Working?
+		CipherText = mixColumns(CipherText, 0)
+		// AddRoundKey
+		CipherText = addKey(CipherText)
+	}
+	// Final Round
+	// subBytes
+	CipherText = subBytes(CipherText, SBOX)
+	// shiftRows
+	CipherText = shiftRows(CipherText, false)
+	// addKey
+	CipherText = addKey(CipherText)
+	fmt.Printf("Cipher Text after AES : %v\n", CipherText)
 
-	WorkingChunk = subBytes(WorkingChunk, SBOX)
-	fmt.Printf("After subBytes: %v\n\n", WorkingChunk)
+	fmt.Printf("Emulating AES Decryption\n")
 
-	/* Test that reverse sub is working
-	InverseSub := subBytes(WorkingChunk, RSBOX)
-	fmt.Printf("Inverse Sub: %v\n", InverseSub)
-	*/
+	PlainText := addKey(CipherText)
+	// loop
+	for i := 0; i < Rounds; i++ {
+		// Inv Shift Rows
+		PlainText = shiftRows(PlainText, true)
+		// InvByte Sub
+		PlainText = subBytes(PlainText, RSBOX)
+		// Inv Mix
+		PlainText = mixColumns(PlainText, 1)
+		// Key addition
+		PlainText = addKey(PlainText)
+	}
+	// endloop
+	// Inv Shift Rows
+	PlainText = shiftRows(PlainText, true)
+	// InvByte Sub
+	PlainText = subBytes(PlainText, RSBOX)
+	// Key addition
+	PlainText = addKey(PlainText)
 
-	WorkingChunk = shiftRows(WorkingChunk)
-	fmt.Printf("After shiftRows: %v\n\n", WorkingChunk)
+	fmt.Printf("Cipher Text after AES : %v\n", PlainText)
 
-	Test := toMixForm(WorkingChunk)
-	fmt.Printf("toMixForm Result: %v\n\n", Test)
-	fromMix := fromMixForm(Test)
-	fmt.Printf("fromMixForm Result: %v\n\n", fromMix)
 }

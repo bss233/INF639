@@ -90,11 +90,16 @@ func subBytes(CipherText []uint8, LT [256]uint8) (Result []uint8) {
 
 // ShiftRows does the Shift Rows operation in AES encryption
 // uses ShiftRowsWork as a helper function
-func shiftRows(CipherText []uint8) (ShiftedCipher []uint8) {
+func shiftRows(CipherText []uint8, Inverse bool) (ShiftedCipher []uint8) {
 
 	MatrixForm := toShiftForm(CipherText)
+	var ShiftedMatrix [][]uint8
 
-	ShiftedMatrix := shiftRowsWork(MatrixForm)
+	if Inverse {
+		ShiftedMatrix = inverseShiftRowsWork(MatrixForm)
+	} else {
+		ShiftedMatrix = shiftRowsWork(MatrixForm)
+	}
 
 	ShiftedCipher = fromShiftForm(ShiftedMatrix)
 
@@ -123,6 +128,27 @@ func shiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
 	return
 }
 
+func inverseShiftRowsWork(RowMatrix [][]uint8) (ShiftedMatrix [][]uint8) {
+
+	var TempArr []uint8
+
+	for RowIndex, Row := range RowMatrix {
+
+		TempArr = make([]uint8, 0)
+
+		for Iter := 0; Iter < RowIndex; Iter++ {
+			TempArr = append(TempArr, Row[Iter])
+		}
+		ShiftedMatrix = append(ShiftedMatrix, TempArr)
+
+		for Iter := RowIndex; Iter < len(Row); Iter++ {
+			TempArr = append(TempArr, Row[Iter])
+		}
+
+	}
+	return
+}
+
 // mixColumns performs the mix column operation of AES
 func mixColumns(CipherText []uint8, MatrixSelect int) (MixedCipher []uint8) {
 	MatrixForm := toMixForm(CipherText)
@@ -145,24 +171,32 @@ func mixColumnsWork(Matrix [][]uint8, MatrixSelect int) (MixedMatrix [][]uint8) 
 	default:
 		MixMatrix = MixColumnsMatrix
 	}
-	var TempArr [][]uint8
+
 	for _, Column := range Matrix {
-		TempArr = append(TempArr, mixMath(Column, MixMatrix))
+		MixedMatrix = append(MixedMatrix, mixMath(Column, MixMatrix))
 	}
 	return
 }
 
 // mixMath multiplies a column vector by a MixMatrix set by mixColumns
 func mixMath(Column []uint8, MixMatrix [4][4]uint8) (RVector []uint8) {
-	var VectorList [][]uint8
 	var TempArr []uint8
 	var VectorVal uint8
+	var NewVal uint8
 	for _, Row := range MixMatrix {
+		TempArr = make([]uint8, 0)
 		for ColIndex, Val := range Row {
 			VectorVal = Column[ColIndex]
 			TempArr = append(TempArr, modMultiply(VectorVal, Val))
 		}
-		VectorList = append(VectorList, TempArr)
+
+		NewVal = TempArr[0]
+
+		for i := 1; i < 4; i++ {
+			NewVal = NewVal ^ TempArr[i]
+		}
+
+		RVector = append(RVector, NewVal)
 	}
 
 	return

@@ -6,23 +6,48 @@ package main
 
 // main drives the demonstration of the AES tools
 func main() {
-	test()
+	test(1)
 	// Get message
 	// Chunk message
 	// AES over chunks
+	//var ChunkedCipher [][]uint8
+	/*
+		// Encrypt Chunks
+		for _, Chunk := range Chunks {
+			ChunkedCipher = append(ChunkedCipher, aesEncryption(Chunk))
+		}
+		fmt.Printf("Chunked AES Cipher: %v\n", ChunkedCipher)
+
+		// Decrypt Chunks
+		var DecryptedChunks [][]uint8
+		for _, Chunk := range ChunkedCipher {
+			DecryptedChunks = append(DecryptedChunks, aesDecryption(Chunk))
+		}
+		fmt.Printf("Decrypted Cipher: %v\n", DecryptedChunks)
+	*/
 }
 
 func aesDecryption(CipherText []uint8) (PlainText []uint8) {
 	// add key
+	PlainText = addKey(CipherText)
 	// loop
-	// Inv Mix
-	// Key addition
-	// InvByte Sub
-	// Inv Shift Rows
+	for i := 0; i < 13; i++ {
+		// Inv Shift Rows
+		PlainText = shiftRows(PlainText, true)
+		// InvByte Sub
+		PlainText = subBytes(PlainText, RSBOX)
+		// Inv Mix
+		PlainText = mixColumns(PlainText, 1)
+		// Key addition
+		PlainText = addKey(PlainText)
+	}
 	// endloop
-	// Inv Shift
-	// InvByte sub
+	// Inv Shift Rows
+	PlainText = shiftRows(PlainText, true)
+	// InvByte Sub
+	PlainText = subBytes(PlainText, RSBOX)
 	// Key addition
+	PlainText = addKey(PlainText)
 	return
 }
 
@@ -30,95 +55,24 @@ func aesDecryption(CipherText []uint8) (PlainText []uint8) {
 // Returns ciphertext
 func aesEncryption(PlainText []uint8) (CipherText []uint8) {
 	// Add round key
+	CipherText = addKey(PlainText)
 	// loop
-	// SubBytes -- Working
-	// ShiftRows -- Working
-	// MixColumns -- Working?
-	// AddRoundKey
+	for i := 0; i < 13; i++ {
+		// SubBytes -- Working
+		CipherText = subBytes(CipherText, SBOX)
+		// ShiftRows -- Working
+		CipherText = shiftRows(CipherText, false)
+		// MixColumns -- Working?
+		CipherText = mixColumns(CipherText, 0)
+		// AddRoundKey
+		CipherText = addKey(CipherText)
+	}
 	// Final Round
 	// subBytes
+	CipherText = subBytes(CipherText, SBOX)
 	// shiftRows
+	CipherText = shiftRows(CipherText, false)
 	// addKey
+	CipherText = addKey(CipherText)
 	return
 }
-
-// mathHelper xors all values in a vector and returns the result
-func mathHelper(vector [][4]int64) (resultVector []int64) {
-	var val int64
-	for _, vectorSet := range vector {
-		val = vectorSet[0]
-		for i := 1; i < 4; i++ {
-			val = val ^ vectorSet[i]
-		}
-		resultVector = append(resultVector, val)
-	}
-	return
-}
-
-/*
-func mixColMath(intVector []int64, matrixSelect int) (mixedCol []int64) {
-	matrixSlices := make([][4]int64, 0)
-	var tempArray [4]int64
-	var tempVal int64
-	var mixMatrix [4][4]uint8
-	switch matrixSelect {
-	case 0:
-		mixMatrix = MixColumnsMatrix
-	case 1:
-		mixMatrix = InverseMixMaxtrix
-	}
-	for _, rowVector := range mixMatrix {
-
-		for colIndex, vectorVal := range rowVector {
-			currentVal := intVector[colIndex]
-			tempVal = currentVal
-			switch vectorVal {
-			case 1:
-				tempVal = currentVal
-
-			case 2:
-				tempVal = (tempVal * 2)
-
-			case 3:
-				tempVal = (tempVal * 3)
-
-			case 9:
-				tempVal = (tempVal * 9)
-
-			case 11:
-				tempVal = (tempVal * 11)
-
-			case 13:
-				tempVal = (tempVal * 13)
-
-			case 14:
-				tempVal = (tempVal * 14)
-			}
-
-			tempArray[colIndex] = tempVal
-			if colIndex == 3 {
-				matrixSlices = append(matrixSlices, tempArray)
-			}
-
-		}
-	}
-
-	mixedCol = mathHelper(matrixSlices)
-	return
-}
-*/
-
-/*
-func invShiftRows(roundCipher string) (result []string) {
-	result = make([]string, 4)
-	groups := buildShiftGroups(roundCipher)
-	result[0] = groups[0]
-	oneShift := ShiftRowsWork(groups[1], 3)
-	result[1] = oneShift
-	twoShift := ShiftRowsWork(groups[2], 2)
-	result[2] = twoShift
-	threeShift := ShiftRowsWork(groups[3], 1)
-	result[3] = threeShift
-	return result
-}
-*/
