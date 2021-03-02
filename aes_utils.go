@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -95,12 +97,35 @@ func fromMixForm(Matrix [][]uint8) (CipherText []uint8) {
 	return
 }
 
-// unchunkMessage
+// unchunkMessage takes an many chunks and turns them into a
+// []uint8
 func unchunkMessage(Chunks [][]uint8) (FullMessage []uint8) {
+	for _, Chunk := range Chunks {
+		for _, Val := range Chunk {
+			FullMessage = append(FullMessage, Val)
+		}
+	}
 	return
 }
 
-// hexToString
+// hexToString converts a []uint8 to its hex string representation
 func hexToString(IntString []uint8) (HexString string) {
+	for _, Val := range IntString {
+		HexString += fmt.Sprintf("%-2x", Val)
+	}
+	return
+}
+
+// toPlainText takes a hex string and converts it to
+// its ascii representation
+func toPlainText(HexString string) (PlainText string) {
+
+	Temp, err := hex.DecodeString(HexString)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	PlainText = fmt.Sprintf("%s", Temp)
 	return
 }
