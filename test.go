@@ -5,7 +5,7 @@ import (
 )
 
 func test(Rounds int) {
-	Message := "This is a test.." // Len 16 for testing
+	Message := "This is a test...." // Len 16 for testing
 	fmt.Printf("Using Message : %v \n", Message)
 	// Add round key
 	Chunks := chunkMessage(Message)

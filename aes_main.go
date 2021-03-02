@@ -1,6 +1,8 @@
 package main
 
-import ("fmt")
+import (
+	"fmt"
+)
 
 // x^8 + x^4 + x^3 + x^1 + x^0 ---->>> 100011011
 
@@ -27,7 +29,7 @@ func main() {
 		CipherChunk = aesEncryption(chunk)
 		CipherArr = append(CipherArr, CipherChunk)
 	}
-	fmt.Printf("Encrypted Chunks: %v\n", CipherArr)
+	fmt.Printf("Encrypted Chunks: %v\n\n", CipherArr)
 
 	for _, chunk := range CipherArr {
 		//aesDecryption
@@ -35,6 +37,11 @@ func main() {
 		PlainArr = append(PlainArr, PlainChunk)
 	}
 	fmt.Printf("Decrypted Chunks: %v\n", PlainArr)
+
+	FullPlainText := unchunkMessage(PlainArr)
+	PlainTextDecrypt := hexToString(FullPlainText)
+	PlainTextDecrypt = toPlainText(PlainTextDecrypt)
+	fmt.Printf("Decrypted Plaintext Message: %v\n", PlainTextDecrypt)
 }
 
 func aesDecryption(CipherText []uint8) (PlainText []uint8) {

@@ -111,7 +111,7 @@ func unchunkMessage(Chunks [][]uint8) (FullMessage []uint8) {
 // hexToString converts a []uint8 to its hex string representation
 func hexToString(IntString []uint8) (HexString string) {
 	for _, Val := range IntString {
-		HexString += fmt.Sprintf("%-2x", Val)
+		HexString += fmt.Sprintf("%02x", Val)
 	}
 	return
 }
