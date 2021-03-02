@@ -94,3 +94,13 @@ func fromMixForm(Matrix [][]uint8) (CipherText []uint8) {
 	}
 	return
 }
+
+// unchunkMessage
+func unchunkMessage(Chunks [][]uint8) (FullMessage []uint8) {
+	return
+}
+
+// hexToString
+func hexToString(IntString []uint8) (HexString string) {
+	return
+}
