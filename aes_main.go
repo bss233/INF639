@@ -1,30 +1,40 @@
 package main
 
+import ("fmt")
+
 // x^8 + x^4 + x^3 + x^1 + x^0 ---->>> 100011011
 
 // AESChunk is the amount of bytes allowed for AES encryption
 
 // main drives the demonstration of the AES tools
 func main() {
-	test(1)
-	// Get message
-	// Chunk message
-	// AES over chunks
-	//var ChunkedCipher [][]uint8
-	/*
-		// Encrypt Chunks
-		for _, Chunk := range Chunks {
-			ChunkedCipher = append(ChunkedCipher, aesEncryption(Chunk))
-		}
-		fmt.Printf("Chunked AES Cipher: %v\n", ChunkedCipher)
+	//initialize
+	var CipherArr [][]uint8
+	var CipherChunk []uint8
+	var PlainArr [][]uint8
+	var PlainChunk []uint8
 
-		// Decrypt Chunks
-		var DecryptedChunks [][]uint8
-		for _, Chunk := range ChunkedCipher {
-			DecryptedChunks = append(DecryptedChunks, aesDecryption(Chunk))
-		}
-		fmt.Printf("Decrypted Cipher: %v\n", DecryptedChunks)
-	*/
+	//getMessage
+	PlainText := getMessage()
+	fmt.Printf("Original Plaintext Message: %v\n", PlainText)
+
+	//chunkMessage
+	Chunks := chunkMessage(PlainText)
+	fmt.Printf("Original Chunks: %v\n", Chunks)
+
+	for _, chunk := range Chunks {
+		//aesEncryption
+		CipherChunk = aesEncryption(chunk)
+		CipherArr = append(CipherArr, CipherChunk)
+	}
+	fmt.Printf("Encrypted Chunks: %v\n", CipherArr)
+
+	for _, chunk := range CipherArr {
+		//aesDecryption
+		PlainChunk = aesDecryption(chunk)
+		PlainArr = append(PlainArr, PlainChunk)
+	}
+	fmt.Printf("Decrypted Chunks: %v\n", PlainArr)
 }
 
 func aesDecryption(CipherText []uint8) (PlainText []uint8) {
@@ -36,10 +46,10 @@ func aesDecryption(CipherText []uint8) (PlainText []uint8) {
 		PlainText = shiftRows(PlainText, true)
 		// InvByte Sub
 		PlainText = subBytes(PlainText, RSBOX)
-		// Inv Mix
-		PlainText = mixColumns(PlainText, 1)
 		// Key addition
 		PlainText = addKey(PlainText)
+		// Inv Mix
+		PlainText = mixColumns(PlainText, 1)
 	}
 	// endloop
 	// Inv Shift Rows
