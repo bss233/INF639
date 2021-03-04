@@ -4,10 +4,6 @@ import (
 	"fmt"
 )
 
-// x^8 + x^4 + x^3 + x^1 + x^0 ---->>> 100011011
-
-// AESChunk is the amount of bytes allowed for AES encryption
-
 // main drives the demonstration of the AES tools
 func main() {
 	//initialize
@@ -15,6 +11,7 @@ func main() {
 	var CipherChunk []uint8
 	var PlainArr [][]uint8
 	var PlainChunk []uint8
+	RoundKeys := keySchedule(14)
 
 	//getMessage
 	PlainText := getMessage()
@@ -26,14 +23,14 @@ func main() {
 
 	for _, chunk := range Chunks {
 		//aesEncryption
-		CipherChunk = aesEncryption(chunk)
+		CipherChunk = aesEncryption(chunk, RoundKeys)
 		CipherArr = append(CipherArr, CipherChunk)
 	}
 	fmt.Printf("Encrypted Chunks: %v\n\n", CipherArr)
 
 	for _, chunk := range CipherArr {
 		//aesDecryption
-		PlainChunk = aesDecryption(chunk)
+		PlainChunk = aesDecryption(chunk, RoundKeys)
 		PlainArr = append(PlainArr, PlainChunk)
 	}
 	fmt.Printf("Decrypted Chunks: %v\n", PlainArr)
@@ -44,17 +41,17 @@ func main() {
 	fmt.Printf("Decrypted Plaintext Message: %v\n", PlainTextDecrypt)
 }
 
-func aesDecryption(CipherText []uint8) (PlainText []uint8) {
+func aesDecryption(CipherText []uint8, RoundKeys [][]uint8) (PlainText []uint8) {
 	// add key
-	PlainText = addKey(CipherText)
+	PlainText = addKey(CipherText, RoundKeys, 14)
 	// loop
-	for i := 0; i < 13; i++ {
+	for i := 13; i > 0; i-- {
 		// Inv Shift Rows
 		PlainText = shiftRows(PlainText, true)
 		// InvByte Sub
 		PlainText = subBytes(PlainText, RSBOX)
 		// Key addition
-		PlainText = addKey(PlainText)
+		PlainText = addKey(PlainText, RoundKeys, i)
 		// Inv Mix
 		PlainText = mixColumns(PlainText, 1)
 	}
@@ -64,17 +61,17 @@ func aesDecryption(CipherText []uint8) (PlainText []uint8) {
 	// InvByte Sub
 	PlainText = subBytes(PlainText, RSBOX)
 	// Key addition
-	PlainText = addKey(PlainText)
+	PlainText = addKey(PlainText, RoundKeys, 0)
 	return
 }
 
 // aesEncryption function that calls the other 4 steps
 // Returns ciphertext
-func aesEncryption(PlainText []uint8) (CipherText []uint8) {
+func aesEncryption(PlainText []uint8, RoundKeys [][]uint8) (CipherText []uint8) {
 	// Add round key
-	CipherText = addKey(PlainText)
+	CipherText = addKey(PlainText, RoundKeys, 0)
 	// loop
-	for i := 0; i < 13; i++ {
+	for i := 1; i < 14; i++ {
 		// SubBytes -- Working
 		CipherText = subBytes(CipherText, SBOX)
 		// ShiftRows -- Working
@@ -82,7 +79,7 @@ func aesEncryption(PlainText []uint8) (CipherText []uint8) {
 		// MixColumns -- Working?
 		CipherText = mixColumns(CipherText, 0)
 		// AddRoundKey
-		CipherText = addKey(CipherText)
+		CipherText = addKey(CipherText, RoundKeys, i)
 	}
 	// Final Round
 	// subBytes
@@ -90,6 +87,6 @@ func aesEncryption(PlainText []uint8) (CipherText []uint8) {
 	// shiftRows
 	CipherText = shiftRows(CipherText, false)
 	// addKey
-	CipherText = addKey(CipherText)
+	CipherText = addKey(CipherText, RoundKeys, 14)
 	return
 }
