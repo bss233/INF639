@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -16,10 +14,9 @@ func loadUI(RoundKeys [][]uint8) fyne.CanvasObject {
 	var decryptText string
 	var hexText string
 	var cipherArr [][]uint8
+
 	// binding for wathching data
-	//boundCipher := binding.BindString(&cipherText)
 	boundMessage := binding.BindString(&messageText)
-	//boundDecrypt := binding.BindString(&decryptText)
 	boundHex := binding.BindString(&hexText)
 
 	cipherView := widget.NewMultiLineEntry()
@@ -40,9 +37,8 @@ func loadUI(RoundKeys [][]uint8) fyne.CanvasObject {
 		boundMessage.Reload()
 	})
 	decrypt := widget.NewButton("Decrypt", func() {
-		fmt.Println(cipherText)
-		fmt.Println(chunkMessage(cipherText))
-		decryptText = aesDecryptionDriver(cipherArr, RoundKeys)
+		tempHex, _ := boundHex.Get()
+		decryptText = aesDecryptionDriver(tempHex, RoundKeys)
 		hexText = ""
 		decryptView.SetText(decryptText)
 		boundHex.Reload()

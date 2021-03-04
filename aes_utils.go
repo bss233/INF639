@@ -122,11 +122,34 @@ func toPlainText(HexString string) (PlainText string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	PlainText = fmt.Sprintf("%s", Temp)
+
+	endIndex := len(Temp) - 1
+	currentVal := Temp[endIndex]
+	lastSeen := currentVal
+
+	for i := endIndex - 1; i > 0; i-- {
+		currentVal = Temp[i]
+		if currentVal == lastSeen {
+			endIndex = i
+			break
+		}
+
+	}
+	newArr := Temp[:endIndex]
+	PlainText = fmt.Sprintf("%s", newArr)
 	return
 }
 
 func chunkHexString(HexMessage string) (Chunks [][]uint8) {
-
+	hexArr, _ := (hex.DecodeString(HexMessage))
+	var TempArr []uint8
+	for index, val := range hexArr {
+		if (index != 0) && (index%AESChunk) == 0 {
+			Chunks = append(Chunks, TempArr)
+			TempArr = make([]uint8, 0)
+		}
+		TempArr = append(TempArr, val)
+	}
+	Chunks = append(Chunks, TempArr)
 	return
 }

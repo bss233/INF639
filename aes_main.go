@@ -83,10 +83,11 @@ func aesEncryptionDriver(Digest string, RoundKeys [][]uint8) (CipherArr [][]uint
 	return
 }
 
-func aesDecryptionDriver(Digest [][]uint8, RoundKeys [][]uint8) string {
+func aesDecryptionDriver(Digest string, RoundKeys [][]uint8) string {
 	var PlainChunk []uint8
 	var PlainArr [][]uint8
-	for _, chunk := range Digest {
+	Chunks := chunkHexString(Digest)
+	for _, chunk := range Chunks {
 		//aesDecryption
 		PlainChunk = aesDecryption(chunk, RoundKeys)
 		PlainArr = append(PlainArr, PlainChunk)
