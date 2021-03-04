@@ -20,7 +20,6 @@ func getMessage() string {
 
 // chunkMessage takes a string and chunks it for AES
 // the resulting chunks are 16 bytes in length
-// chunks has an additional element at the last index that contains a string reduction of it's contents
 func chunkMessage(Message string) (Chunks [][]uint8) {
 	var TempArr []uint8
 	for Index, Char := range Message {
@@ -119,13 +118,15 @@ func hexToString(IntString []uint8) (HexString string) {
 // toPlainText takes a hex string and converts it to
 // its ascii representation
 func toPlainText(HexString string) (PlainText string) {
-
 	Temp, err := hex.DecodeString(HexString)
-
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	PlainText = fmt.Sprintf("%s", Temp)
+	return
+}
+
+func chunkHexString(HexMessage string) (Chunks [][]uint8) {
+
 	return
 }

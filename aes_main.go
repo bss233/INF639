@@ -1,44 +1,25 @@
 package main
 
-import (
-	"fmt"
-)
+import "fyne.io/fyne/v2/app"
 
 // main drives the demonstration of the AES tools
 func main() {
 	//initialize
-	var CipherArr [][]uint8
-	var CipherChunk []uint8
-	var PlainArr [][]uint8
-	var PlainChunk []uint8
 	RoundKeys := keySchedule(14)
-
+	app := app.New()
+	window := app.NewWindow("AES Demo")
+	window.SetContent(loadUI(RoundKeys))
+	window.ShowAndRun()
 	//getMessage
-	PlainText := getMessage()
-	fmt.Printf("Original Plaintext Message: %v\n", PlainText)
-
+	//PlainText := getMessage()
+	//fmt.Printf("Original Plaintext Message: %v\n", PlainText)
 	//chunkMessage
-	Chunks := chunkMessage(PlainText)
-	fmt.Printf("Original Chunks: %v\n", Chunks)
 
-	for _, chunk := range Chunks {
-		//aesEncryption
-		CipherChunk = aesEncryption(chunk, RoundKeys)
-		CipherArr = append(CipherArr, CipherChunk)
-	}
-	fmt.Printf("Encrypted Chunks: %v\n\n", CipherArr)
-
-	for _, chunk := range CipherArr {
-		//aesDecryption
-		PlainChunk = aesDecryption(chunk, RoundKeys)
-		PlainArr = append(PlainArr, PlainChunk)
-	}
-	fmt.Printf("Decrypted Chunks: %v\n", PlainArr)
-
-	FullPlainText := unchunkMessage(PlainArr)
-	PlainTextDecrypt := hexToString(FullPlainText)
-	PlainTextDecrypt = toPlainText(PlainTextDecrypt)
-	fmt.Printf("Decrypted Plaintext Message: %v\n", PlainTextDecrypt)
+	/*fmt.Printf("Testing with : %s\n", message)
+	CipherArr := aesEncryptionDriver(message, RoundKeys)
+	fmt.Println(hexToString(unchunkMessage(CipherArr)))
+	PlainText := aesDecryptionDriver(CipherArr, RoundKeys)
+	fmt.Println(PlainText)*/
 }
 
 func aesDecryption(CipherText []uint8, RoundKeys [][]uint8) (PlainText []uint8) {
@@ -89,4 +70,29 @@ func aesEncryption(PlainText []uint8, RoundKeys [][]uint8) (CipherText []uint8) 
 	// addKey
 	CipherText = addKey(CipherText, RoundKeys, 14)
 	return
+}
+
+func aesEncryptionDriver(Digest string, RoundKeys [][]uint8) (CipherArr [][]uint8) {
+	Chunks := chunkMessage(Digest)
+	var CipherChunk []uint8
+	for _, chunk := range Chunks {
+		//aesEncryption
+		CipherChunk = aesEncryption(chunk, RoundKeys)
+		CipherArr = append(CipherArr, CipherChunk)
+	}
+	return
+}
+
+func aesDecryptionDriver(Digest [][]uint8, RoundKeys [][]uint8) string {
+	var PlainChunk []uint8
+	var PlainArr [][]uint8
+	for _, chunk := range Digest {
+		//aesDecryption
+		PlainChunk = aesDecryption(chunk, RoundKeys)
+		PlainArr = append(PlainArr, PlainChunk)
+	}
+	FullPlainText := unchunkMessage(PlainArr)
+	PlainTextDecrypt := hexToString(FullPlainText)
+	PlainTextDecrypt = toPlainText(PlainTextDecrypt)
+	return PlainTextDecrypt
 }
