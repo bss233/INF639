@@ -126,13 +126,15 @@ func toPlainText(HexString string) (PlainText string) {
 	endIndex := len(Temp) - 1
 	currentVal := Temp[endIndex]
 	lastSeen := currentVal
-
+	fmt.Println(lastSeen)
 	for i := endIndex - 1; i > 0; i-- {
 		currentVal = Temp[i]
-		if currentVal == lastSeen {
+		fmt.Println(currentVal)
+		if currentVal == lastSeen && lastSeen <= uint8(15) {
 			endIndex = i
-			break
+			fmt.Println("Breaking")
 		}
+		lastSeen = currentVal
 
 	}
 	newArr := Temp[:endIndex]
